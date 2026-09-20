@@ -48,6 +48,25 @@ async function testConnection() {
   return { ping, download, upload };
 }
 
+// Функция генерации «нейросетевого» ответа
+function formatAIResponse(data) {
+  if (!data.download && !data.upload && !data.ping) {
+    return "⚠️ Пока нет данных о качестве интернет‑соединения для этой школы.";
+  }
+  return `
+    🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
+    • 📡 Ping: ${data.ping ?? "нет данных"} мс — отклик сети.  
+    • ⬇️ Download: ${data.download ?? "нет данных"} Mbps — скорость загрузки.  
+    • ⬆️ Upload: ${data.upload ?? "нет данных"} Mbps — скорость отправки.  
+
+    В целом соединение оценивается как ${
+      data.download > 50 ? "стабильное и быстрое 🚀" :
+      data.download > 10 ? "среднее ⚖️" :
+      "слабое 🐢"
+    }.
+  `;
+}
+
 schoolSelect.addEventListener('change', async () => {
   const id = schoolSelect.value;
   const res = await fetch(`/api/school/${id}`);
@@ -56,15 +75,7 @@ schoolSelect.addEventListener('change', async () => {
   map.setView([data.latitude, data.longitude], 14);
   L.marker([data.latitude, data.longitude])
     .addTo(map)
-    .bindPopup(`
-      <b>${data.school}</b><br>
-      ${data.city}, ${data.district}, ${data.region}<br>
-      <hr>
-            <b>Последние данные из БД:</b><br>
-      Download: ${data.download ?? "нет данных"} Mbps<br>
-      Upload: ${data.upload ?? "нет данных"} Mbps<br>
-      Ping: ${data.ping ?? "нет данных"} ms
-    `)
+    .bindPopup(formatAIResponse(data))
     .openPopup();
 
   // Автоматическое измерение качества
