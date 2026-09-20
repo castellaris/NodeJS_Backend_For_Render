@@ -59,15 +59,19 @@ schoolSelect.addEventListener('change', async () => {
     .bindPopup(`
       <b>${data.school}</b><br>
       ${data.city}, ${data.district}, ${data.region}<br>
+      <hr>
+            <b>Последние данные из БД:</b><br>
       Download: ${data.download ?? "нет данных"} Mbps<br>
       Upload: ${data.upload ?? "нет данных"} Mbps<br>
       Ping: ${data.ping ?? "нет данных"} ms
     `)
     .openPopup();
 
+  // Автоматическое измерение качества
   const quality = await testConnection();
 
-    await fetch("/api/quality", {
+  // Сохраняем новые данные в БД
+  await fetch("/api/quality", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
