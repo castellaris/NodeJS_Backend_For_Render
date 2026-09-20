@@ -17,6 +17,17 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const schoolSelect = document.getElementById('schoolSelect');
 const qualityDiv = document.getElementById('qualityReport'); // блок под картой
 
+// Функция «нейросетевой генерации» текста (эффект печати)
+function typeWriter(element, text, speed = 40) {
+  element.innerHTML = ""; // очищаем блок
+  let i = 0;
+  const interval = setInterval(() => {
+    element.innerHTML = text.slice(0, i);
+    i++;
+    if (i > text.length) clearInterval(interval);
+  }, speed);
+}
+
 // Функция генерации «нейросетевого» ответа
 function formatAIResponse(data) {
   if (!data.download && !data.upload && !data.ping) {
@@ -110,14 +121,14 @@ async function showSchoolData(id) {
     })
   });
 
-  // Отображаем нейросетевой отчёт под картой
-  qualityDiv.innerHTML = formatAIResponse({
+  // Отображаем нейросетевой отчёт под картой с эффектом печати
+  typeWriter(qualityDiv, formatAIResponse({
     school: data.school,
     city: data.city,
     ping: quality.ping,
     download: quality.download,
     upload: quality.upload
-  });
+  }));
 
   console.log("Данные о качестве отправлены:", quality);
 }
@@ -147,13 +158,13 @@ if (latParam && lonParam && schoolParam) {
       })
     });
 
-    qualityDiv.innerHTML = formatAIResponse({
+    typeWriter(qualityDiv, formatAIResponse({
       school: schoolParam,
       city: "—",
       ping: quality.ping,
       download: quality.download,
       upload: quality.upload
-    });
+    }));
   })();
 }
 
