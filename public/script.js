@@ -17,54 +17,26 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const schoolSelect = document.getElementById('schoolSelect');
 const qualityDiv = document.getElementById('qualityReport'); // блок под картой
 
-// Если переданы параметры — сразу ставим маркер выбранной школы
-if (latParam && lonParam && schoolParam) {
-  L.marker([latParam, lonParam])
-    .addTo(map)
-    .bindPopup(`📍 ${schoolParam}`)
-    .openPopup();
+// Функция генерации «нейросетевого» ответа
+function formatAIResponse(data) {
+  if (!data.download && !data.upload && !data.ping) {
+    return "⚠️ Пока нет данных о качестве интернет‑соединения для этой школы.";
+  }
+  return `
+    🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
+    • 📡 Ping: ${data.ping ?? "нет данных"} мс — отклик сети.  
+    • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps — скорость загрузки.  
+    • ⬆️ Upload: ${data.upload?.toFixed(1) ?? "нет данных"} Mbps — скорость отправки.  
 
-  // Автоматически измеряем качество и выводим отчёт
-  (async () => {
-    const quality = await testConnection();
-
-    // Отправляем данные на сервер
-    await fetch("/api/quality", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        region: "—",
-        district: "—",
-        city: "—",
-        school: schoolParam,
-        download: quality.download,
-        upload: quality.upload,
-        ping: quality.ping
-      })
-    });
-
-    // Показываем отчёт под картой
-    qualityDiv.innerHTML = formatAIResponse({
-      school: schoolParam,
-      city: "—",
-      ping: quality.ping,
-      download: quality.download,
-      upload: quality.upload
-    });
-  })();
+    В целом соединение оценивается как ${
+      data.download > 50 ? "стабильное и быстрое 🚀" :
+      data.download > 10 ? "среднее ⚖️" :
+      "слабое 🐢"
+    }.
+  `;
 }
 
-async function loadSchools() {
-  const res = await fetch('/api/schools');
-  const schools = await res.json();
-  schools.forEach(s => {
-    const option = document.createElement('option');
-    option.value = s.id;
-    option.textContent = `${s.school} (${s.city})`;
-    schoolSelect.appendChild(option);
-  });
-}
-
+// Функция измерения качества соединения
 async function testConnection() {
   let ping = 0, download = 0, upload = 0;
 
@@ -97,27 +69,20 @@ async function testConnection() {
   return { ping, download, upload };
 }
 
-// Функция генерации «нейросетевого» ответа
-function formatAIResponse(data) {
-  if (!data.download && !data.upload && !data.ping) {
-    return "⚠️ Пока нет данных о качестве интернет‑соединения для этой школы.";
-  }
-  return `
-    🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
-    • 📡 Ping: ${data.ping ?? "нет данных"} мс — отклик сети.  
-    • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps — скорость загрузки.  
-    • ⬆️ Upload: ${data.upload?.toFixed(1) ?? "нет данных"} Mbps — скорость отправки.  
-
-    В целом соединение оценивается как ${
-      data.download > 50 ? "стабильное и быстрое 🚀" :
-      data.download > 10 ? "среднее ⚖️" :
-      "слабое 🐢"
-    }.
-  `;
+// Загрузка списка школ
+async function loadSchools() {
+  const res = await fetch('/api/schools');
+  const schools = await res.json();
+  schools.forEach(s => {
+    const option = document.createElement('option');
+    option.value = s.id;
+    option.textContent = `${s.school} (${s.city})`;
+    schoolSelect.appendChild(option);
+  });
 }
 
-schoolSelect.addEventListener('change', async () => {
-  const id = schoolSelect.value;
+// Отображение школы и нейросетевого отчёта
+async function showSchoolData(id) {
   const res = await fetch(`/api/school/${id}`);
   const data = await res.json();
 
@@ -145,7 +110,7 @@ schoolSelect.addEventListener('change', async () => {
     })
   });
 
-  // Отображаем отчёт под картой
+  // Отображаем нейросетевой отчёт под картой
   qualityDiv.innerHTML = formatAIResponse({
     school: data.school,
     city: data.city,
@@ -155,6 +120,47 @@ schoolSelect.addEventListener('change', async () => {
   });
 
   console.log("Данные о качестве отправлены:", quality);
+}
+
+// Если переданы параметры — сразу ставим маркер выбранной школы
+if (latParam && lonParam && schoolParam) {
+  L.marker([latParam, lonParam])
+    .addTo(map)
+    .bindPopup(`📍 ${schoolParam}`)
+    .openPopup();
+
+  // Автоматически измеряем качество и выводим отчёт
+  (async () => {
+    const quality = await testConnection();
+
+    await fetch("/api/quality", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        region: "—",
+        district: "—",
+        city: "—",
+        school: schoolParam,
+        download: quality.download,
+        upload: quality.upload,
+        ping: quality.ping
+      })
+    });
+
+    qualityDiv.innerHTML = formatAIResponse({
+      school: schoolParam,
+      city: "—",
+      ping: quality.ping,
+      download: quality.download,
+      upload: quality.upload
+    });
+  })();
+}
+
+// Обработка выбора школы из списка
+schoolSelect.addEventListener('change', async () => {
+  const id = schoolSelect.value;
+  await showSchoolData(id);
 });
 
 loadSchools();
