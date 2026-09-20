@@ -9,12 +9,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Настройка статической папки для сайта
+// Настройка статической папки
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
 
-// Подключение к базе данных SQLite
 const db = await open({
   filename: "./database.db",
   driver: sqlite3.Database
@@ -86,38 +85,25 @@ app.post("/api/quality", async (req, res) => {
 
 // GET: список всех школ
 app.get("/api/schools", async (req, res) => {
-  try {
-    const rows = await db.all("SELECT id, region, district, city, school FROM schools");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const rows = await db.all("SELECT id, region, district, city, school FROM schools");
+  res.json(rows);
 });
 
 // GET: данные по конкретной школе (с координатами и качеством)
 app.get("/api/school/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const school = await db.get("SELECT * FROM schools WHERE id=?", [id]);
-    if (!school) return res.status(404).json({ error: "School not found" });
+  const id = req.params.id;
+  const school = await db.get("SELECT * FROM schools WHERE id=?", [id]);
+  if (!school) return res.status(404).json({ error: "School not found" });
 
-    const geo = await db.get("SELECT latitude, longitude FROM geo_location WHERE school_id=?", [id]);
-    const quality = await db.get(
-      "SELECT download, upload, ping FROM quality WHERE school_id=? ORDER BY id DESC LIMIT 1",
-      [id]
-    );
+  const geo = await db.get("SELECT latitude, longitude FROM geo_location WHERE school_id=?", [id]);
+  const quality = await db.get(
+    "SELECT download, upload, ping FROM quality WHERE school_id=? ORDER BY id DESC LIMIT 1",
+    [id]
+  );
 
-    res.json({
-      ...school,
-      ...geo,
-      ...quality
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ ...school, ...geo, ...quality });
 });
 
-// Настройка порта
 const PORT = process.env.PORT || 5500;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
