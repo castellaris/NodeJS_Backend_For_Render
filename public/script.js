@@ -28,6 +28,27 @@ function typeWriter(element, text, speed = 40) {
   }, speed);
 }
 
+// Функция показа "Ассистент думает..."
+function showThinking(element) {
+  element.innerHTML = "🤖 Ассистент думает<span class='cursor'>...</span>";
+}
+
+// Добавляем мигающий курсор через CSS
+const style = document.createElement("style");
+style.innerHTML = `
+  .cursor {
+    display: inline-block;
+    width: 10px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
 // Функция генерации «нейросетевого» ответа
 function formatAIResponse(data) {
   if (!data.download && !data.upload && !data.ping) {
@@ -103,6 +124,9 @@ async function showSchoolData(id) {
     .bindPopup(formatAIResponse(data))
     .openPopup();
 
+  // Показываем "Ассистент думает..."
+  showThinking(qualityDiv);
+
   // Автоматическое измерение качества
   const quality = await testConnection();
 
@@ -121,14 +145,16 @@ async function showSchoolData(id) {
     })
   });
 
-  // Отображаем нейросетевой отчёт под картой с эффектом печати
-  typeWriter(qualityDiv, formatAIResponse({
-    school: data.school,
-    city: data.city,
-    ping: quality.ping,
-    download: quality.download,
-    upload: quality.upload
-  }));
+  // Через небольшую паузу начинаем печатать отчёт
+  setTimeout(() => {
+    typeWriter(qualityDiv, formatAIResponse({
+      school: data.school,
+      city: data.city,
+      ping: quality.ping,
+      download: quality.download,
+      upload: quality.upload
+    }));
+  }, 1000);
 
   console.log("Данные о качестве отправлены:", quality);
 }
@@ -140,7 +166,9 @@ if (latParam && lonParam && schoolParam) {
     .bindPopup(`📍 ${schoolParam}`)
     .openPopup();
 
-  // Автоматически измеряем качество и выводим отчёт
+  // Показываем "Ассистент думает..."
+  showThinking(qualityDiv);
+
   (async () => {
     const quality = await testConnection();
 
@@ -158,13 +186,15 @@ if (latParam && lonParam && schoolParam) {
       })
     });
 
-    typeWriter(qualityDiv, formatAIResponse({
-      school: schoolParam,
-      city: "—",
-      ping: quality.ping,
-      download: quality.download,
-      upload: quality.upload
-    }));
+    setTimeout(() => {
+      typeWriter(qualityDiv, formatAIResponse({
+        school: schoolParam,
+        city: "—",
+        ping: quality.ping,
+        download: quality.download,
+        upload: quality.upload
+      }));
+    }, 1000);
   })();
 }
 
