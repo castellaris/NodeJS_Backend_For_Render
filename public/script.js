@@ -1,9 +1,28 @@
-const map = L.map('map').setView([49.95, 82.62], 10);
+// Читаем параметры из URL (если они есть)
+const params = new URLSearchParams(window.location.search);
+const latParam = parseFloat(params.get("lat"));
+const lonParam = parseFloat(params.get("lon"));
+const schoolParam = params.get("school");
+
+// Создаём карту: если есть параметры — используем их, иначе координаты по умолчанию
+const map = L.map('map').setView(
+  [latParam || 49.95, lonParam || 82.62],
+  latParam && lonParam ? 14 : 10
+);
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap'
 }).addTo(map);
 
 const schoolSelect = document.getElementById('schoolSelect');
+
+// Если переданы параметры — сразу ставим маркер выбранной школы
+if (latParam && lonParam && schoolParam) {
+  L.marker([latParam, lonParam])
+    .addTo(map)
+    .bindPopup(`📍 ${schoolParam}`)
+    .openPopup();
+}
 
 async function loadSchools() {
   const res = await fetch('/api/schools');
