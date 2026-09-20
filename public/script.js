@@ -15,6 +15,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const schoolSelect = document.getElementById('schoolSelect');
+const qualityDiv = document.getElementById('qualityReport'); // блок под картой
 
 // Если переданы параметры — сразу ставим маркер выбранной школы
 if (latParam && lonParam && schoolParam) {
@@ -22,6 +23,35 @@ if (latParam && lonParam && schoolParam) {
     .addTo(map)
     .bindPopup(`📍 ${schoolParam}`)
     .openPopup();
+
+  // Автоматически измеряем качество и выводим отчёт
+  (async () => {
+    const quality = await testConnection();
+
+    // Отправляем данные на сервер
+    await fetch("/api/quality", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        region: "—",
+        district: "—",
+        city: "—",
+        school: schoolParam,
+        download: quality.download,
+        upload: quality.upload,
+        ping: quality.ping
+      })
+    });
+
+    // Показываем отчёт под картой
+    qualityDiv.innerHTML = formatAIResponse({
+      school: schoolParam,
+      city: "—",
+      ping: quality.ping,
+      download: quality.download,
+      upload: quality.upload
+    });
+  })();
 }
 
 async function loadSchools() {
@@ -75,8 +105,8 @@ function formatAIResponse(data) {
   return `
     🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
     • 📡 Ping: ${data.ping ?? "нет данных"} мс — отклик сети.  
-    • ⬇️ Download: ${data.download ?? "нет данных"} Mbps — скорость загрузки.  
-    • ⬆️ Upload: ${data.upload ?? "нет данных"} Mbps — скорость отправки.  
+    • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps — скорость загрузки.  
+    • ⬆️ Upload: ${data.upload?.toFixed(1) ?? "нет данных"} Mbps — скорость отправки.  
 
     В целом соединение оценивается как ${
       data.download > 50 ? "стабильное и быстрое 🚀" :
@@ -113,6 +143,15 @@ schoolSelect.addEventListener('change', async () => {
       upload: quality.upload,
       ping: quality.ping
     })
+  });
+
+  // Отображаем отчёт под картой
+  qualityDiv.innerHTML = formatAIResponse({
+    school: data.school,
+    city: data.city,
+    ping: quality.ping,
+    download: quality.download,
+    upload: quality.upload
   });
 
   console.log("Данные о качестве отправлены:", quality);
