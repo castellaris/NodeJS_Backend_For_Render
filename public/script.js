@@ -1,10 +1,8 @@
-// Читаем параметры из URL (если они есть)
 const params = new URLSearchParams(window.location.search);
 const latParam = parseFloat(params.get("lat"));
 const lonParam = parseFloat(params.get("lon"));
 const schoolParam = params.get("school");
 
-// Создаём карту: если есть параметры — используем их, иначе координаты по умолчанию
 const map = L.map('map').setView(
   [latParam || 49.95, lonParam || 82.62],
   latParam && lonParam ? 14 : 10
@@ -17,7 +15,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const schoolSelect = document.getElementById('schoolSelect');
 const qualityDiv = document.getElementById('qualityReport');
 
-// Функция эффекта печати текста
 function typeWriter(element, text, speed = 40) {
   element.innerHTML = "";
   let i = 0;
@@ -28,12 +25,10 @@ function typeWriter(element, text, speed = 40) {
   }, speed);
 }
 
-// Функция показа "Ассистент думает..."
 function showThinking(element) {
   element.innerHTML = "🤖 Ассистент думает<span class='cursor'>...</span>";
 }
 
-// Добавляем мигающий курсор через CSS
 const style = document.createElement("style");
 style.innerHTML = `
   .cursor {
@@ -49,16 +44,15 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// Форматирование отчёта
 function formatAIResponse(data) {
   if (!data.download && !data.upload && !data.ping) {
     return "⚠️ Пока нет данных о качестве интернет‑соединения для этой школы.";
   }
   return `
     🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
-    • 📡 Ping: ${data.ping?.toFixed(0) ?? "нет данных"} мс — отклик сети.  
-    • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps — скорость загрузки.  
-    • ⬆️ Upload: ${data.upload?.toFixed(1) ?? "нет данных"} Mbps — скорость отправки.  
+    • 📡 Ping: ${data.ping?.toFixed(0) ?? "нет данных"} мс  
+    • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps  
+    • ⬆️ Upload: ${(data.upload ?? 0).toFixed(1)} Mbps  
 
     В целом соединение оценивается как ${
       data.download > 50 ? "стабильное и быстрое 🚀" :
@@ -68,18 +62,15 @@ function formatAIResponse(data) {
   `;
 }
 
-// Тест качества соединения (работает в WebView2)
 async function testConnection() {
   let ping = 0, download = 0, upload = 0;
 
-  // Ping
   const startPing = performance.now();
   try {
     await fetch("/api/test-upload", { method: "POST" });
     ping = performance.now() - startPing;
   } catch { ping = performance.now() - startPing; }
 
-  // Download
   try {
     const start = performance.now();
     const data = await fetch("https://speed.cloudflare.com/__down");
@@ -89,9 +80,8 @@ async function testConnection() {
     download = (sizeMB * 8) / timeSec;
   } catch { download = 0; }
 
-  // Upload (через локальный маршрут, чтобы избежать CORS)
   try {
-    const payload = new Uint8Array(1 * 1024 * 1024); // 1 МБ
+    const payload = new Uint8Array(5 * 1024 * 1024); // увеличен размер
     const start = performance.now();
     await fetch("/api/test-upload", {
       method: "POST",
@@ -104,7 +94,6 @@ async function testConnection() {
   return { ping, download, upload };
 }
 
-// Загрузка списка школ
 async function loadSchools() {
   const res = await fetch('/api/schools');
   const schools = await res.json();
@@ -116,7 +105,6 @@ async function loadSchools() {
   });
 }
 
-// Отображение школы и отчёта
 async function showSchoolData(id) {
   const res = await fetch(`/api/school/${id}`);
   const data = await res.json();
@@ -145,7 +133,7 @@ async function showSchoolData(id) {
     })
   });
 
-  setTimeout(() => {
+    setTimeout(() => {
     typeWriter(qualityDiv, formatAIResponse({
       school: data.school,
       city: data.city,
@@ -193,6 +181,8 @@ if (latParam && lonParam && schoolParam) {
         upload: quality.upload
       }));
     }, 1000);
+
+    console.log("Данные о качестве отправлены:", quality);
   })();
 }
 
