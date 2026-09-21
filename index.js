@@ -77,6 +77,7 @@ app.post("/api/quality", async (req, res) => {
       "INSERT INTO quality (school_id, download, upload, ping) VALUES (?, ?, ?, ?)",
       [schoolRow.id, download, upload, ping]
     );
+    console.log("Quality saved:", download, upload, ping);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,7 +90,7 @@ app.get("/api/schools", async (req, res) => {
   res.json(rows);
 });
 
-// GET: данные по конкретной школе (с координатами и качеством)
+// GET: данные по конкретной школе
 app.get("/api/school/:id", async (req, res) => {
   const id = req.params.id;
   const school = await db.get("SELECT * FROM schools WHERE id=?", [id]);
@@ -104,39 +105,9 @@ app.get("/api/school/:id", async (req, res) => {
   res.json({ ...school, ...geo, ...quality });
 });
 
-// GET: карта с выбранной школой
-app.get("/map", (req, res) => {
-  const lat = parseFloat(req.query.lat);
-  const lon = parseFloat(req.query.lon);
-  const school = req.query.school || "Неизвестная школа";
-
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Карта школ — онлайн</title>
-      <style>
-        #map { height: 100vh; width: 100%; margin: 0; padding: 0; }
-      </style>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-      <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script>
-        const map = L.map('map').setView([${lat}, ${lon}], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap'
-        }).addTo(map);
-        L.marker([${lat}, ${lon}]).addTo(map)
-          .bindPopup('${school}')
-          .openPopup();
-      </script>
-    </body>
-    </html>
-  `);
+// Тестовый маршрут для Upload
+app.post("/api/test-upload", (req, res) => {
+  res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 5500;
