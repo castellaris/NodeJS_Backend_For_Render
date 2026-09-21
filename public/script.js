@@ -40,3 +40,30 @@ function formatAIResponse(data) {
     ⬆️ Upload: ${(data.upload ?? 0).toFixed(1)} Mbps
   `;
 }
+
+async function showSchoolData(id) {
+  const res = await fetch(`/api/school/${id}`);
+  const data = await res.json();
+
+  const quality = await testConnection();
+
+  await fetch("/api/quality", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      region: data.region,
+      district: data.district,
+      city: data.city,
+      school: data.school,
+      download: quality.download,
+      upload: quality.upload,
+      ping: quality.ping
+    })
+  });
+
+  // 🔁 Повторный запрос для получения обновлённых данных
+  const updated = await fetch(`/api/school/${id}`);
+  const updatedData = await updated.json();
+
+  document.getElementById("qualityReport").innerHTML = formatAIResponse(updatedData);
+}
