@@ -18,6 +18,7 @@ const db = await open({
   driver: sqlite3.Database
 });
 
+// Создание таблиц
 await db.exec(`
 CREATE TABLE IF NOT EXISTS schools (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS quality (
 );
 `);
 
+// POST: сохранить школу и координаты
 app.post("/api/data", async (req, res) => {
   const { region, district, city, school, latitude, longitude } = req.body;
   try {
@@ -61,6 +63,7 @@ app.post("/api/data", async (req, res) => {
   }
 });
 
+// POST: сохранить качество интернета
 app.post("/api/quality", async (req, res) => {
   const { region, district, city, school, download, upload, ping } = req.body;
   try {
@@ -78,6 +81,28 @@ app.post("/api/quality", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET: список всех школ
+app.get("/api/schools", async (req, res) => {
+  const rows = await db.all("SELECT id, region, district, city, school FROM schools");
+  res.json(rows);
+});
+
+// GET: данные по конкретной школе (с задержкой для обновления)
+app.get("/api/school/:id", async (req, res) => {
+  const id = req.params.id;
+  const school = await db.get("SELECT * FROM schools WHERE id=?", [id]);
+  if (!school) return res.status(404).json({ error: "School not found" });
+
+  const geo = await db.get("SELECT latitude, longitude FROM geo_location WHERE school_id=?", [id]);
+  await new Promise(resolve => setTimeout(resolve, 200)); // задержка для синхронизации
+  const quality = await db.get(
+    "SELECT download, upload, ping FROM quality WHERE school_id=? ORDER BY id DESC LIMIT 1",
+    [id]
+  );
+
+  res.json({ ...school, ...geo, ...quality });
 });
 
 // Тестовый маршрут для Upload
