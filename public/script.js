@@ -15,11 +15,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const schoolSelect = document.getElementById('schoolSelect');
-const qualityDiv = document.getElementById('qualityReport'); // блок под картой
+const qualityDiv = document.getElementById('qualityReport');
 
-// Функция «нейросетевой генерации» текста (эффект печати)
+// Функция эффекта печати текста
 function typeWriter(element, text, speed = 40) {
-  element.innerHTML = ""; // очищаем блок
+  element.innerHTML = "";
   let i = 0;
   const interval = setInterval(() => {
     element.innerHTML = text.slice(0, i);
@@ -49,14 +49,14 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// Функция генерации «нейросетевого» ответа
+// Форматирование отчёта
 function formatAIResponse(data) {
   if (!data.download && !data.upload && !data.ping) {
     return "⚠️ Пока нет данных о качестве интернет‑соединения для этой школы.";
   }
   return `
     🤖 Я проанализировал подключение в "${data.school}" (${data.city}):  
-    • 📡 Ping: ${data.ping ?? "нет данных"} мс — отклик сети.  
+    • 📡 Ping: ${data.ping?.toFixed(0) ?? "нет данных"} мс — отклик сети.  
     • ⬇️ Download: ${data.download?.toFixed(1) ?? "нет данных"} Mbps — скорость загрузки.  
     • ⬆️ Upload: ${data.upload?.toFixed(1) ?? "нет данных"} Mbps — скорость отправки.  
 
@@ -68,16 +68,18 @@ function formatAIResponse(data) {
   `;
 }
 
-// Функция измерения качества соединения
+// Тест качества соединения (работает в WebView2)
 async function testConnection() {
   let ping = 0, download = 0, upload = 0;
 
+  // Ping
   const startPing = performance.now();
   try {
-    await fetch("https://8.8.8.8", { mode: "no-cors" });
+    await fetch("/api/test-upload", { method: "POST" });
     ping = performance.now() - startPing;
   } catch { ping = performance.now() - startPing; }
 
+  // Download
   try {
     const start = performance.now();
     const data = await fetch("https://speed.cloudflare.com/__down");
@@ -87,10 +89,11 @@ async function testConnection() {
     download = (sizeMB * 8) / timeSec;
   } catch { download = 0; }
 
+  // Upload (через локальный маршрут, чтобы избежать CORS)
   try {
-    const payload = new Uint8Array(2 * 1024 * 1024);
+    const payload = new Uint8Array(1 * 1024 * 1024); // 1 МБ
     const start = performance.now();
-    await fetch("https://speed.cloudflare.com/__up", {
+    await fetch("/api/test-upload", {
       method: "POST",
       body: payload
     });
@@ -113,7 +116,7 @@ async function loadSchools() {
   });
 }
 
-// Отображение школы и нейросетевого отчёта
+// Отображение школы и отчёта
 async function showSchoolData(id) {
   const res = await fetch(`/api/school/${id}`);
   const data = await res.json();
@@ -124,13 +127,10 @@ async function showSchoolData(id) {
     .bindPopup(formatAIResponse(data))
     .openPopup();
 
-  // Показываем "Ассистент думает..."
   showThinking(qualityDiv);
 
-  // Автоматическое измерение качества
   const quality = await testConnection();
 
-  // Сохраняем новые данные в БД
   await fetch("/api/quality", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -145,7 +145,6 @@ async function showSchoolData(id) {
     })
   });
 
-  // Через небольшую паузу начинаем печатать отчёт
   setTimeout(() => {
     typeWriter(qualityDiv, formatAIResponse({
       school: data.school,
@@ -159,14 +158,13 @@ async function showSchoolData(id) {
   console.log("Данные о качестве отправлены:", quality);
 }
 
-// Если переданы параметры — сразу ставим маркер выбранной школы
+// Если переданы параметры — сразу показываем школу
 if (latParam && lonParam && schoolParam) {
   L.marker([latParam, lonParam])
     .addTo(map)
     .bindPopup(`📍 ${schoolParam}`)
     .openPopup();
 
-  // Показываем "Ассистент думает..."
   showThinking(qualityDiv);
 
   (async () => {
@@ -198,7 +196,7 @@ if (latParam && lonParam && schoolParam) {
   })();
 }
 
-// Обработка выбора школы из списка
+// Обработка выбора школы
 schoolSelect.addEventListener('change', async () => {
   const id = schoolSelect.value;
   await showSchoolData(id);
